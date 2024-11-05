@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
 RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", 5672))
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
 RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "name_meanings")
 
 def callback(ch, method, properties, body):
@@ -22,10 +24,10 @@ def callback(ch, method, properties, body):
         logger.info("Message acknowledged successfully")
     except Exception as e:
         logger.error(f"Error processing message: {str(e)}")
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
 def get_rabbitmq_connection():
-    credentials = pika.PlainCredentials('guest', 'guest')
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=RABBITMQ_HOST,
@@ -37,8 +39,17 @@ def get_rabbitmq_connection():
     )
     return connection
 
+def signal_handler(signal, frame):
+    logger.info("Signal received, shutting down gracefully...")
+    sys.exit(0)
+
 def main():
     logger.info("Consumer starting up...")
+
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+
+    retry_delay = 5
 
     while True:
         try:
@@ -47,7 +58,8 @@ def main():
             channel.queue_declare(queue=RABBITMQ_QUEUE, durable=True)
             channel.basic_qos(prefetch_count=1)
 
-            logger.info("Connected to RabbitMQ, waiting for messages...")
+            logger.info(f"Connected to RabbitMQ host: {RABBITMQ_HOST}, queue: {RABBITMQ_QUEUE}")
+            logger.info("Waiting for messages...")
 
             channel.basic_consume(
                 queue=RABBITMQ_QUEUE,
@@ -57,11 +69,14 @@ def main():
             channel.start_consuming()
 
         except pika.exceptions.AMQPConnectionError as e:
-            logger.error(f"Connection error: {str(e)}")
-            time.sleep(5)
+            logger.error(f"Connection error: {str(e)}. Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)  # Exponential backoff with a maximum delay
         except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            time.sleep(5)
+            logger.error(f"Unexpected error: {str(e)}. Retrying in {retry_delay} seconds...")
+            time.sleep(retry_delay)
+            retry_delay = min(retry_delay * 2, 60)
 
 if __name__ == '__main__':
     main()
+

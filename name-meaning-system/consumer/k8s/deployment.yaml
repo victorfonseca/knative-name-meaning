@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: name-meaning-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: name-meaning-consumer
+  template:
+    metadata:
+      labels:
+        app: name-meaning-consumer
+    spec:
+      containers:
+      - name: consumer
+        image: victorfonseca/name-meaning-consumer:latest
+        imagePullPolicy: Always
+        env:
+        - name: RABBITMQ_HOST
+          value: "rabbitmq"
+        - name: RABBITMQ_PORT
+          value: "5672"

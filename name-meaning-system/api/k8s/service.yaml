@@ -6,11 +6,12 @@ spec:
   template:
     spec:
       containers:
-        - image: victorfonseca/name-lookup-api:latest
-          ports:
-            - containerPort: 8080
-          env:
-            - name: RABBITMQ_HOST
-              value: "rabbitmq"
-            - name: RABBITMQ_PORT
-              value: "5672"
+      - image: victorfonseca/name-lookup-api:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: BROKER_URL
+          value: http://broker-ingress.knative-eventing.svc.cluster.local/default/name-meanings-broker
+        readinessProbe:
+          tcpSocket:
+            port: 8080

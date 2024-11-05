@@ -13,5 +13,14 @@ spec:
         - name: BROKER_URL
           value: http://broker-ingress.knative-eventing.svc.cluster.local/default/name-meanings-broker
         readinessProbe:
-          tcpSocket:
+          httpGet:
+            path: / # Checks the root endpoint
             port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: / # Checks the root endpoint
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 20

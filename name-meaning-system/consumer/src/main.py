@@ -9,11 +9,12 @@ import sys
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "rabbitmq")
-RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT", 5672))
-RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
-RABBITMQ_PASS = os.getenv("RABBITMQ_PASS", "guest")
-RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE", "name_meanings")
+# Use environment variables provided by ConfigMap and Secret
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST")
+RABBITMQ_PORT = int(os.getenv("RABBITMQ_PORT"))
+RABBITMQ_USER = os.getenv("RABBITMQ_USER")
+RABBITMQ_PASS = os.getenv("RABBITMQ_PASS")
+RABBITMQ_QUEUE = os.getenv("RABBITMQ_QUEUE")
 
 def callback(ch, method, properties, body):
     try:
@@ -79,4 +80,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

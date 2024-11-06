@@ -46,46 +46,49 @@ Ensure that all the pods in the Knative namespaces are running successfully.
 
 ## Deployment Steps
 ### Deploy RabbitMQ
-1. **Create RabbitMQ Secret**:
+1. **Create RabbitMQ Secret** (to store credentials for RabbitMQ access):
    ```bash
    kubectl create secret generic rabbitmq-secret \
      --from-literal=username=guest \
      --from-literal=password=guest
    ```
 
-2. **Deploy Persistent Volume Claim** for RabbitMQ data:
+2. **Create RabbitMQ ConfigMap** (to store configuration like host, port, queue name):
    ```yaml
    apiVersion: v1
-   kind: PersistentVolumeClaim
+   kind: ConfigMap
    metadata:
-     name: rabbitmq-pvc
-   spec:
-     accessModes:
-     - ReadWriteOnce
-     resources:
-       requests:
-         storage: 1Gi
+     name: rabbitmq-config
+   data:
+     RABBITMQ_HOST: "rabbitmq"
+     RABBITMQ_PORT: "5672"
+     RABBITMQ_QUEUE: "name_meanings"
    ```
-   Apply the PVC:
+   Apply the ConfigMap:
+   ```bash
+   kubectl apply -f name-meaning-system/infrastructure/rabbitmq/rabbitmq-config.yaml
+   ```
+
+3. **Deploy Persistent Volume Claim** for RabbitMQ data:
    ```bash
    kubectl apply -f name-meaning-system/infrastructure/rabbitmq/rabbitmq-pvc.yaml
    ```
 
-3. **Deploy RabbitMQ**:
+4. **Deploy RabbitMQ**:
    ```bash
    kubectl apply -f name-meaning-system/infrastructure/rabbitmq/deployment.yaml
    kubectl apply -f name-meaning-system/infrastructure/rabbitmq/service.yaml
    ```
 
 ### Deploy API Service
-Deploy the API that handles name lookups:
+Deploy the API that handles name lookups using Knative Serving:
 
 ```bash
 kubectl apply -f name-meaning-system/api/k8s/service.yaml
 ```
 
 ### Deploy Consumer Service
-Deploy the consumer that reads from RabbitMQ:
+Deploy the consumer that reads messages from RabbitMQ:
 
 ```bash
 kubectl apply -f name-meaning-system/consumer/k8s/deployment.yaml
@@ -116,7 +119,7 @@ To test the API, you can use the following command to call the `/lookup/{name}` 
 
 ```bash
 # Replace <API_ENDPOINT> with the actual external IP or hostname
-curl -X POST <API_ENDPOINT>/lookup/John
+curl -X POST http://name-lookup-api.default.127.0.0.1.nip.io/lookup/John
 ```
 
 You should receive a response indicating that the name meaning has been processed and published to the queue.
@@ -147,10 +150,10 @@ You should see a log indicating that the consumer received and processed the mes
 
 - **No Active Pods for Knative Service**: If the `name-lookup-api` pods are not created, it may be due to no traffic. Send a request to the service to trigger pod creation:
   ```bash
-  curl -X POST <API_ENDPOINT>/lookup/John
+  curl -X POST http://name-lookup-api.default.127.0.0.1.nip.io/lookup/John
   ```
 
-- **Liveness and Readiness Probe Failures**: If the probes are failing, consider removing them or adjusting their configuration to allow more time for the application to become healthy. You can update the deployment YAML to remove or modify the `livenessProbe` and `readinessProbe` sections.
+- **Liveness and Readiness Probe Failures**: If the probes are failing, consider adjusting their configuration to allow more time for the application to become healthy. Update the deployment YAML as needed.
 
 ## Clean Up
 To delete all deployed resources, run the following commands:
@@ -168,9 +171,10 @@ To delete all deployed resources, run the following commands:
    kubectl delete pvc rabbitmq-pvc
    ```
 
-3. **Delete RabbitMQ Secret**:
+3. **Delete RabbitMQ Secret and ConfigMap**:
    ```bash
    kubectl delete secret rabbitmq-secret
+   kubectl delete configmap rabbitmq-config
    ```
 
 This will remove all components related to the Name Meaning System from your Kubernetes cluster.
@@ -207,6 +211,7 @@ graph TD;
       RabbitMQ_Service -->|Consume from Queue| Consumer_Pod;
     end
   end
-``` 
+```
 
 These diagrams provide a visual overview of how the infrastructure and services are connected and how communication flows through the system.
+

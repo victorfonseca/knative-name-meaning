@@ -12,15 +12,40 @@ spec:
         env:
         - name: BROKER_URL
           value: http://broker-ingress.knative-eventing.svc.cluster.local/default/name-meanings-broker
+        - name: RABBITMQ_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RABBITMQ_HOST
+        - name: RABBITMQ_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RABBITMQ_PORT
+        - name: RABBITMQ_QUEUE
+          valueFrom:
+            configMapKeyRef:
+              name: rabbitmq-config
+              key: RABBITMQ_QUEUE
+        - name: RABBITMQ_USER
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: username
+        - name: RABBITMQ_PASS
+          valueFrom:
+            secretKeyRef:
+              name: rabbitmq-secret
+              key: password
         readinessProbe:
           httpGet:
-            path: / # Checks the root endpoint
+            path: /
             port: 8080
           initialDelaySeconds: 5
           periodSeconds: 10
         livenessProbe:
           httpGet:
-            path: / # Checks the root endpoint
+            path: /
             port: 8080
           initialDelaySeconds: 15
           periodSeconds: 20
